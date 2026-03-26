@@ -16,7 +16,7 @@ from telegram.ext import ContextTypes
 from config.settings import ADMIN_IDS, BROADCAST_CHAT_ID, runtime
 from database.crud import (
     admin_credit, admin_debit, approve_withdrawal, create_trade_signal,
-    get_all_users, get_pending_withdrawals, get_recent_logs, get_recent_signals,
+    get_all_users, get_pending_withdrawals, get_recent_signals,
     get_recent_tx_logs, get_setting, get_withdrawal, reject_withdrawal,
     set_setting,
 )
