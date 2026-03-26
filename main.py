@@ -48,7 +48,7 @@ async def post_init(application: Application) -> None:
     logger.info("Background tasks started.")
 
 
-def main() -> None:
+async def main() -> None:
     if not BOT_TOKEN:
         raise ValueError("BOT_TOKEN is not set. Check your .env file.")
 
