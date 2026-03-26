@@ -5,6 +5,7 @@ Run this file to start the bot.
 
 import asyncio
 import logging
+import sys
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -26,7 +27,7 @@ logging.basicConfig(
     level=getattr(logging, LOG_LEVEL, logging.INFO),
     handlers=[
         logging.FileHandler("bot.log"),
-        logging.StreamHandler(),
+        logging.StreamHandler(sys.stdout),
     ],
 )
 logger = logging.getLogger(__name__)
@@ -48,10 +49,20 @@ async def post_init(application: Application) -> None:
     logger.info("Background tasks started.")
 
 
-async def main() -> None:
+async def main(*args, **kwargs) -> None:
+    """
+    Main entry point. Uses *args and **kwargs to prevent TypeErrors 
+    if the environment passes unexpected arguments.
+    """
     if not BOT_TOKEN:
-        raise ValueError("BOT_TOKEN is not set. Check your .env file.")
+        logger.error("BOT_TOKEN is not set. Check your environment variables.")
+        return
 
+    # Initialize Handlers
+    user = UserHandlers()
+    admin = AdminHandlers()
+
+    # Build Application
     app = (
         Application.builder()
         .token(BOT_TOKEN)
@@ -59,19 +70,17 @@ async def main() -> None:
         .build()
     )
 
-    user = UserHandlers()
-    admin = AdminHandlers()
-
-    # ── User commands ──────────────────────────────────────────────────────────
+    # ── User Commands ──────────────────────────────────────────────────────────
     app.add_handler(CommandHandler("start",    user.cmd_start))
-    app.add_handler(CommandHandler("balance",  user.cmd_balance))
+    app.add_handler(CommandHandler("help",     user.cmd_help))
+    app.add_handler(CommandHandler("profile",  user.cmd_profile))
     app.add_handler(CommandHandler("deposit",  user.cmd_deposit))
     app.add_handler(CommandHandler("withdraw", user.cmd_withdraw))
     app.add_handler(CommandHandler("history",  user.cmd_history))
-    app.add_handler(CommandHandler("help",     user.cmd_help))
+    app.add_handler(CommandHandler("support",  user.cmd_support))
 
-    # ── Admin commands ─────────────────────────────────────────────────────────
-    app.add_handler(CommandHandler("admin",           admin.cmd_admin_panel))
+    # ── Admin Commands ─────────────────────────────────────────────────────────
+    app.add_handler(CommandHandler("admin",            admin.cmd_admin_panel))
     app.add_handler(CommandHandler("users",           admin.cmd_list_users))
     app.add_handler(CommandHandler("pending",         admin.cmd_pending_withdrawals))
     app.add_handler(CommandHandler("approve",         admin.cmd_approve_withdrawal))
@@ -92,13 +101,23 @@ async def main() -> None:
     # ── Fallback ───────────────────────────────────────────────────────────────
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, user.handle_message))
 
-    logger.info("Bot is polling…")
-    await app.run_polling(drop_pending_updates=True)
-
+    logger.info("Bot is starting...")
+    
+    # Use the asynchronous runner to keep the bot alive on Railway
+    async with app:
+        await app.initialize()
+        await app.start()
+        await app.updater.start_polling(drop_pending_updates=True)
+        logger.info("Bot is polling.")
+        # This loop keeps the main task running indefinitely
+        while True:
+            await asyncio.sleep(3600)
 
 if __name__ == "__main__":
     try:
+        # This is the correct way to launch an async main in Python 3.7+
         asyncio.run(main())
-    except KeyboardInterrupt:
-        pass
-
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Bot stopped by user or system.")
+    except Exception as e:
+        logger.exception(f"Unexpected crash: {e}")
