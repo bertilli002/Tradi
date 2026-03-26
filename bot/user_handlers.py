@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class UserHandlers:
 
     # ── /start ────────────────────────────────────────────────────────────────
-    async def cmd_profile(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    async def cmd_start(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         tg = update.effective_user
         user = await get_or_create_user(tg.id, tg.username, tg.full_name)
         await update.message.reply_text(
